@@ -1,4 +1,5 @@
 import { downloadFromUrl } from './download-logic';
+import { saveAs } from 'file-saver';
 
 /**
  * 检查是否支持 File System Access API
@@ -37,42 +38,17 @@ async function streamDownloadWithFileSystemApi(stream: ReadableStream, fileName:
 }
 
 /**
- * 降级方案：使用传统方式下载
+ * 降级方案：使用 file-saver 库下载
  */
 async function downloadWithFallback(stream: ReadableStream, fileName: string): Promise<void> {
-    // 使用 Response 对象包装流
+    // 使用 Response 对象包装流并转换为 Blob
     const response = new Response(stream);
     const blob = await response.blob();
-    const downloadUrl = URL.createObjectURL(blob);
 
-    const a = document.createElement('a');
-    a.href = downloadUrl;
-    a.download = fileName;
-    document.body.appendChild(a);
-    a.click();
+    // 使用 file-saver 库的 saveAs 函数
+    saveAs(blob, fileName);
 
-    // 清理
-    setTimeout(() => {
-        document.body.removeChild(a);
-        URL.revokeObjectURL(downloadUrl);
-    }, 100);
-
-    console.log('File downloaded using fallback method');
-}
-
-/**
- * 更新下载进度
- */
-function updateProgress(percentage: number): void {
-    const progressElement = document.getElementById('download-progress');
-    const statusElement = document.getElementById('download-status');
-
-    if (progressElement) {
-        progressElement.style.width = `${percentage}%`;
-    }
-    if (statusElement) {
-        statusElement.textContent = `Downloading... ${Math.round(percentage)}%`;
-    }
+    console.log('File downloaded using file-saver fallback method');
 }
 
 /**
@@ -129,7 +105,7 @@ async function handleDownload(): Promise<void> {
                 }
             }
 
-            // 降级方案
+            // 降级方案：使用 file-saver
             await downloadWithFallback(result.stream, fileName);
             showComplete();
         } else {

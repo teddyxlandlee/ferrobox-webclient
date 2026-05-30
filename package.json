@@ -4,6 +4,7 @@
   "type": "module",
   "devDependencies": {
     "@types/file-saver": "^2.0.7",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^25.8.0",
     "@types/wicg-file-system-access": "^2023.10.7",
     "dotenv": "^17.4.2",
@@ -17,6 +18,8 @@
   "dependencies": {
     "buffer": "^6.0.3",
     "ferrobox-core": "github:teddyxlandlee/ferrobox-core",
-    "file-saver": "^2.0.5"
+    "file-saver": "^2.0.5",
+    "jsonwebtoken": "^9.0.3",
+    "nanoid": "^5.1.11"
   }
 }
