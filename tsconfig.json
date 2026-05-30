@@ -1,0 +1,25 @@
+{
+    "compilerOptions": {
+        "moduleResolution": "bundler",
+        "strict": true,
+        "target": "es2020",
+        "module": "esnext", // use vite packaging
+        "declaration": true,
+        "skipLibCheck": true,  // true to accelerate compilation by skipping type checking of declaration files
+        
+        // "baseUrl": ".",
+        "paths": {
+            "ferrobox-core": [
+                "./node_modules/ferrobox-core/dist/types/index.d.ts",
+                "./node_modules/ferrobox-core/dist/types/types.d.ts",
+            ]
+        },
+        "types": ["vite/client"],
+
+        "declarationDir": "./dist/types", // 声明文件输出目录
+        "rootDir": "./src",
+        "emitDeclarationOnly": true,      // 只生成类型声明，不生成 JS
+    },
+    "include": ["src/**/*.ts", "src/**/*.d.ts"],
+    "exclude": ["node_modules", "dist"]
+}
