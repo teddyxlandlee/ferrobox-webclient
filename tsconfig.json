@@ -14,7 +14,7 @@
                 "./node_modules/ferrobox-core/dist/types/types.d.ts",
             ]
         },
-        "types": ["vite/client"],
+        "types": ["wicg-file-system-access", "vite/client"],
 
         "declarationDir": "./dist/types", // 声明文件输出目录
         "rootDir": "./src",

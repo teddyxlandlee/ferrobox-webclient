@@ -1,0 +1,14 @@
+{
+  "download": {
+    "endpoints": {
+      "meta": "https://meta.example",
+      "data": "https://data.example"
+    }
+  },
+  "upload": {
+    "endpoints": {
+      "meta": "https://upload.example/meta",
+      "data": "https://upload.example/data"
+    }
+  }
+}

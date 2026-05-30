@@ -3,7 +3,10 @@
   "version": "0.0.0",
   "type": "module",
   "devDependencies": {
+    "@types/file-saver": "^2.0.7",
     "@types/node": "^25.8.0",
+    "@types/wicg-file-system-access": "^2023.10.7",
+    "dotenv": "^17.4.2",
     "typescript": "^6.0.3",
     "vite": "^8.0.13"
   },
@@ -12,6 +15,8 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "ferrobox-core": "github:teddyxlandlee/ferrobox-core"
+    "buffer": "^6.0.3",
+    "ferrobox-core": "github:teddyxlandlee/ferrobox-core",
+    "file-saver": "^2.0.5"
   }
 }
