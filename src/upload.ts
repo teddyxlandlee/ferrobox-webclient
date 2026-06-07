@@ -1,17 +1,16 @@
 import {AuthedUploadEngine, AuthenticationField, EncryptResult, MetaOutV10, randomNamers} from "./upload-authed";
 import {DEPLOY_INFO} from "./constants";
 import * as jwt from 'jsonwebtoken'
-import {KeyHandle} from "./authutil";
+import {KeyHandle, signData, SignResult} from "./authutil";
 
 interface ChallengePayload {
-    scopes: string[],
-    nonce: string,
+    scopes: string[]
+    nonce: string
 }
 
-interface ChallengeResponse {
+type ChallengeResponse = {
     payload: string     // JWT
-    signature: string
-    certs: string[]
+    signResult: SignResult
 }
 
 class CertificatedUploadEngine extends AuthedUploadEngine {
@@ -30,27 +29,23 @@ class CertificatedUploadEngine extends AuthedUploadEngine {
         );
     }
 
-    private async sign(data: ChallengePayload): Promise<{
-        signature: string,
-        certs: string[],
-    }> {
+    private async sign(data: ChallengePayload): Promise<SignResult> {
         const signedString = [
             'v2',
             data.nonce,
             Array.from(data.scopes).sort().join(','),
         ].join('\n')
-        // TODO: sign with private key
+        return signData(this.keyHandle, signedString)
     }
 
     private async authenticate(): Promise<void> {
         const getResponse = await fetch(this.authEndpoint)
         const jwtPayload = await getResponse.text()
         const payload = jwt.decode(jwtPayload) as ChallengePayload
-        const {signature, certs} = await this.sign(payload)
+        const signResult = await this.sign(payload)
         const challengeResponse: ChallengeResponse = {
             payload: jwtPayload,
-            signature,
-            certs,
+            signResult,
         }
         const postResponse = await fetch(this.authEndpoint, {
             method: 'POST',
