@@ -1,3 +1,5 @@
+import {Buffer} from 'buffer'
+
 interface ChallengeResult {
     response: AuthenticatorAssertionResponse,
     rawId: ArrayBuffer,

@@ -1,6 +1,6 @@
 import {AuthedUploadEngine, type AuthenticationField, type EncryptResult, type MetaOutV10, randomNamers, type UploadEngine} from "./upload-authed";
 import {DEPLOY_INFO} from "./constants";
-import * as jwt from 'jsonwebtoken'
+import {jwtDecode} from 'jwt-decode'
 import {KeyHandle, signData, SignResult, listAllHandles} from "./authutil";
 import * as FerroBox from 'ferrobox-core'
 
@@ -44,7 +44,8 @@ class CertificatedUploadEngine extends AuthedUploadEngine {
     private async authenticate(): Promise<void> {
         const getResponse = await fetch(this.authEndpoint)
         const jwtPayload = await getResponse.text()
-        const payload = jwt.decode(jwtPayload) as ChallengePayload
+        // const payload = jwt.decode(jwtPayload) as ChallengePayload
+        const payload: ChallengePayload = jwtDecode(jwtPayload)
         const signResult = await this.sign(payload)
         const challengeResponse: ChallengeResponse = {
             payload: jwtPayload,
