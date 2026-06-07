@@ -16,11 +16,11 @@ export default defineConfig({
     build: {
         outDir: path.resolve(__dirname, 'dist'),
         rolldownOptions: {
-            input: {
-                'static/download': './download.html',
-                'static/upload': './upload.html',
-                index: './download.html'
-            }
+            input: [
+                'static/download.html',
+                'static/upload.html',
+                'static/credentials.html',
+            ]
         }
     },
 })

@@ -1,5 +1,6 @@
 import { downloadFromUrl } from './download-logic';
 import { saveAs } from 'file-saver';
+import './download.css'
 
 /**
  * 检查是否支持 File System Access API
