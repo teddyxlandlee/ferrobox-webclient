@@ -3,7 +3,7 @@ import {getDbPromise} from "./auth-db";
 const STORE_NAME = 'auth-keys'
 const dbPromise = getDbPromise(STORE_NAME)
 
-/** @returns public key */
+/** @returns public key, in SPKI format */
 export async function generateKeyPair(
     id: string,
 ): Promise<ArrayBuffer> {

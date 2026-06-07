@@ -23,3 +23,12 @@ export async function challenge(id: string, challenge: ArrayBuffer): Promise<Cha
     const response = credential.response as AuthenticatorAssertionResponse
     return { response, rawId: credential.rawId }
 }
+
+export async function listKeys(): Promise<readonly string[]> {
+    // TODO
+}
+
+/** @returns public key, in SPKI format */
+export async function generateKeyPair(id: string): Promise<ArrayBuffer> {
+    // TODO
+}
