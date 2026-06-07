@@ -1,7 +1,10 @@
-import {AuthedUploadEngine, AuthenticationField, EncryptResult, MetaOutV10, randomNamers} from "./upload-authed";
+import {AuthedUploadEngine, type AuthenticationField, type EncryptResult, type MetaOutV10, randomNamers, type UploadEngine} from "./upload-authed";
 import {DEPLOY_INFO} from "./constants";
 import * as jwt from 'jsonwebtoken'
-import {KeyHandle, signData, SignResult} from "./authutil";
+import {KeyHandle, signData, SignResult, listAllHandles} from "./authutil";
+import * as FerroBox from 'ferrobox-core'
+
+import './upload.css'
 
 interface ChallengePayload {
     scopes: string[]
@@ -66,4 +69,97 @@ class CertificatedUploadEngine extends AuthedUploadEngine {
     protected authMeta = (meta: MetaOutV10) => this.authAll()
 
     protected authData = (data: EncryptResult) => this.authAll()
+}
+
+// ─── UI setup ──────────────────────────────────────────────────────────────
+
+const fileInput = document.getElementById('file-input') as HTMLInputElement | null
+const keyHandleSelect = document.getElementById('key-handle-select') as HTMLSelectElement | null
+const uploadButton = document.getElementById('upload-button') as HTMLButtonElement | null
+const statusMessage = document.getElementById('status-message') as HTMLDivElement | null
+
+function setStatus(msg: string, isError: boolean = false): void {
+    if (statusMessage) {
+        statusMessage.textContent = msg
+        statusMessage.style.color = isError ? '#c00' : '#080'
+    }
+}
+
+async function populateKeyHandles(): Promise<void> {
+    if (!keyHandleSelect) return
+
+    const handles = await listAllHandles()
+
+    keyHandleSelect.innerHTML = ''
+
+    if (handles.length === 0) {
+        const option = document.createElement('option')
+        option.disabled = true
+        option.selected = true
+        option.textContent = 'No keys found – register a key first'
+        keyHandleSelect.appendChild(option)
+        if (uploadButton) uploadButton.disabled = true
+        return
+    }
+
+    for (const handle of handles) {
+        const option = document.createElement('option')
+        option.value = JSON.stringify(handle)
+        option.textContent = `${handle.type}: ${handle.id}`
+        keyHandleSelect.appendChild(option)
+    }
+
+    if (uploadButton) uploadButton.disabled = false
+}
+
+async function handleUpload(): Promise<void> {
+    if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+        setStatus('Please select a file first', true)
+        return
+    }
+
+    if (!keyHandleSelect || !keyHandleSelect.value) {
+        setStatus('Please select a key handle', true)
+        return
+    }
+
+    const file = fileInput.files[0]
+    const keyHandle: KeyHandle = JSON.parse(keyHandleSelect.value)
+
+    setStatus('Uploading…')
+
+    try {
+        const engine: UploadEngine = new CertificatedUploadEngine(keyHandle)
+
+        const slug = await FerroBox.upload(file, engine)
+
+        setStatus(`Upload complete! Slug: ${slug}`)
+    } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err)
+        setStatus(`Upload failed: ${msg}`, true)
+    }
+}
+
+async function init(): Promise<void> {
+    await populateKeyHandles()
+
+    if (uploadButton) {
+        uploadButton.addEventListener('click', handleUpload)
+    }
+
+    if (fileInput) {
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files && fileInput.files.length > 0) {
+                setStatus(`Selected: ${fileInput.files[0].name}`)
+            }
+        })
+    }
+
+    setStatus('Ready')
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init)
+} else {
+    init()
 }

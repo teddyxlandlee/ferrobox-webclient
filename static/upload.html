@@ -6,6 +6,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 </head>
 <body>
+    <h1>Upload File</h1>
+
+    <form id="upload-form">
+        <label>
+            Key Handle:
+            <select id="key-handle-select"></select>
+        </label>
+        <br />
+        <label>
+            File:
+            <input type="file" id="file-input" />
+        </label>
+        <br />
+        <button type="button" id="upload-button">Upload</button>
+    </form>
+
+    <div id="status-message"></div>
+
 <script type="module" src="../src/upload.ts"></script>
 </body>
 </html>

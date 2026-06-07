@@ -2,7 +2,7 @@ import * as FerroBox  from 'ferrobox-core'
 import {nanoid} from 'nanoid'
 // import type {MetaUploadRequest, DataUploadRequest} from "ferrobox-core/types";
 
-type UploadEngine = Parameters<typeof FerroBox.upload>[1]
+export type UploadEngine = Parameters<typeof FerroBox.upload>[1]
 type MetaUploadRequest = UploadEngine['uploadMeta']
 type DataUploadRequest = UploadEngine['uploadData']
 
