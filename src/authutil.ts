@@ -34,7 +34,7 @@ interface WebAuthnSignResult extends SignResultBase {
 const STORE_NAME = 'certs';
 const dbPromise = getDbPromise(STORE_NAME)
 
-async function readCerts(keyHandle: KeyHandle): Promise<(readonly string[]) | null> {
+export async function readCerts(keyHandle: KeyHandle): Promise<(readonly string[]) | null> {
     const db = await dbPromise
     const tx = db.transaction(STORE_NAME, 'readonly')
     const id: string = keyHandle.type + ':' + keyHandle.id
@@ -82,4 +82,55 @@ export async function signData(keyHandle: KeyHandle, data: string | Uint8Array<A
             userHandle: response.userHandle ? Buffer.from(response.userHandle).toString('base64') : null,
         }
     }
+}
+
+// ─── Certificate Management ────────────────────────────────────────────────
+
+export async function storeCerts(keyHandle: KeyHandle, certs: readonly string[]): Promise<void> {
+    if (!certs.every(s => typeof s === 'string')) {
+        throw Error('All certificates must be strings (PEM format)');
+    }
+    const db = await dbPromise;
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    const id: string = keyHandle.type + ':' + keyHandle.id;
+    tx.objectStore(STORE_NAME).put(certs, id);
+    await new Promise<void>((resolve, reject) => {
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error);
+    });
+}
+
+export async function deleteCerts(keyHandle: KeyHandle): Promise<void> {
+    const db = await dbPromise;
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    const id: string = keyHandle.type + ':' + keyHandle.id;
+    tx.objectStore(STORE_NAME).delete(id);
+    await new Promise<void>((resolve, reject) => {
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error);
+    });
+}
+
+export async function listAllHandles(): Promise<readonly KeyHandle[]> {
+    const db = await dbPromise;
+    const tx = db.transaction(STORE_NAME, "readonly");
+    const request = tx.objectStore(STORE_NAME).getAllKeys();
+    const keys = await new Promise<IDBValidKey[]>((resolve, reject) => {
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+    });
+    const handles: KeyHandle[] = [];
+    for (const k of keys) {
+        if (typeof k !== 'string') continue;
+        const colon = k.indexOf(':');
+        if (colon === -1) continue;
+        const t = k.substring(0, colon);
+        const id = k.substring(colon + 1);
+        if (t === 'webauthn' || t === 'webcrypto') {
+            handles.push({ type: t, id });
+        }
+    }
+    return handles;
 }

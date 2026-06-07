@@ -62,3 +62,14 @@ export async function getKey(
         request.onerror = () => reject(request.error);
     });
 }
+
+export async function deleteKey(id: string): Promise<void> {
+    const db = await dbPromise;
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    tx.objectStore(STORE_NAME).delete(id);
+    await new Promise<void>((resolve, reject) => {
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error);
+    });
+}
