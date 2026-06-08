@@ -1,0 +1,5 @@
+/ /static/download.html 200
+/f/* /static/download.html 200
+/m/* /static/download-markdown.html 200
+/p/* /static/download-plaintext.html 200
+/u   /static/upload.html 301

@@ -106,6 +106,7 @@ export abstract class AuthedUploadEngine implements UploadEngine {
         return this.uploadVia(this.endpoints.metaUpload, meta, JSON.stringify, this.authMeta, this.namers.meta)
     }
     async uploadData(data: EncryptResult): Promise<string> {
-        return this.uploadVia(this.endpoints.dataUpload, data, (d) => d.encodedStream, this.authData, this.namers.data)
+        const slug = await this.uploadVia(this.endpoints.dataUpload, data, (d) => d.encodedStream, this.authData, this.namers.data)
+        return new URL(slug, this.endpoints.dataDownloadRoot).href
     }
 }

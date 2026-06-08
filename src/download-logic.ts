@@ -58,7 +58,10 @@ export async function downloadFromUrl(url: URL | Location): Promise<DownloadResu
 }
 
 async function fetchMeta(slug: string): Promise<Parameters<typeof FerroBox.download>[0]> {
-    const url = new URL(slug + '.json', DEPLOY_INFO.download.endpoints.meta)
+    const url = new URL(slug, DEPLOY_INFO.download.endpoints.meta)
     const response = await fetch(url)
+    if (!response.ok) {
+        throw new Error(`Failed to fetch metadata: ${response.status} ${response.statusText}`)
+    }
     return await response.json()
 }

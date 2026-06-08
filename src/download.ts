@@ -92,7 +92,7 @@ async function handleDownload(): Promise<void> {
             // 获取文件名（路径格式: /type/slug）
             const urlParts = window.location.pathname.split('/');
             const slug = urlParts[2];
-            const fileName = slug ? slug : 'download';
+            const fileName = slug || 'download';
 
             // 尝试使用 File System API，不可用时降级
             if (isFileSystemApiSupported()) {
