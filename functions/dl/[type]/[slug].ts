@@ -1,4 +1,4 @@
-import OSS from 'ali-oss';
+import { generatePresignedUrl } from './_ossSign.js'
 
 interface FerroboxFunctionsEnvironment {
     OSS_BUCKET_META: string
@@ -8,7 +8,7 @@ interface FerroboxFunctionsEnvironment {
     OSS_ACCESS_KEY_SECRET: string
 }
 
-const THRESHOLD_SIZE = 50 * 1024 * 1024
+const THRESHOLD_SIZE = 100 * 1024 * 1024
 const PRESIGNED_URL_EXPIRATION = 60 * 15 // 15 minutes
 
 export const onRequestGet: PagesFunction<FerroboxFunctionsEnvironment> = async (context) => {
@@ -20,35 +20,31 @@ export const onRequestGet: PagesFunction<FerroboxFunctionsEnvironment> = async (
     const region = context.env.OSS_REGION;
     const accessKeyId = context.env.OSS_ACCESS_KEY_ID;
     const accessKeySecret = context.env.OSS_ACCESS_KEY_SECRET;
+    const credentials = { bucket, region, accessKeyId, accessKeySecret }
 
     const filename = slug + (type === 'meta' ? '.json' : '.bin')
 
-    const client = new OSS({
-        region,
-        accessKeyId,
-        accessKeySecret,
-        bucket,
-        secure: true,   // Force HTTPS is enabled on the buckets
-    })
-
+    // 1 minute for HEAD is enough
+    const headUrl = await generatePresignedUrl(credentials, 'HEAD', filename, 60)
     // HEAD it initially to check whether file size exceeds threshold
     // If it does, we will generate a signed URL and redirect the client to it
-    let fileSize: number
-    try {
-        const headResult = await client.head(filename)
-        fileSize = headResult.res.size
-    } catch (err) {
-        if (err instanceof Error && err.name === 'NoSuchKeyError') {
-            return new Response('File not found', { status: 404 });
+    const headResponse = await fetch(headUrl, { method: 'HEAD' })
+    if (!headResponse.ok) {
+        if (headResponse.status === 404) {
+            return new Response('File not found', { status: 404 })
         } else {
-            return new Response(String(err), { status: 502 })
+            return new Response('Upstream returns HTTP ' + headResponse.status, { status: 502 })
         }
     }
+    const fileSize = parseInt(headResponse.headers.get('Content-Length') || '')
+    if (isNaN(fileSize)) {
+        console.warn('Content-Length header is missing or invalid, falling back to presigned URL')
+    }
 
-    const url = await client.signatureUrlV4('GET', PRESIGNED_URL_EXPIRATION, {}, filename)
-    if (fileSize > THRESHOLD_SIZE) {
+    const url = await generatePresignedUrl(credentials, 'GET', filename, PRESIGNED_URL_EXPIRATION)
+    if (fileSize > THRESHOLD_SIZE || isNaN(fileSize)) {
         // make a presigned URL valid for 15 minutes
-        return Response.redirect(url, 302)
+        return Response.redirect(url, 307)
     }
 
     const response = await fetch(url)
