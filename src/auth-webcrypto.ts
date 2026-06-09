@@ -1,18 +1,7 @@
 import {getDbPromise} from "./auth-db";
 import {Buffer} from 'buffer';
-import {
-    AttributeTypeAndValue,
-    RelativeDistinguishedNames,
-    PublicKeyInfo,
-    AlgorithmIdentifier,
-} from 'pkijs';
-import {
-    fromBER,
-    BitString,
-    Utf8String,
-    Sequence,
-    Integer,
-} from 'asn1js';
+import * as pkijs from 'pkijs';
+import * as asn1js from 'asn1js';
 
 const STORE_NAME = 'auth-keys'
 const dbPromise = getDbPromise(STORE_NAME)
@@ -94,7 +83,7 @@ export async function deleteKey(id: string): Promise<void> {
 
 type CsrAttribute = 'CN' | 'O' | 'OU' | 'C' | 'L' | 'ST';
 
-const oidMap: Record<CsrAttribute, string> = {
+const SUBJECT_OIDS: Record<CsrAttribute, string> = {
     CN: '2.5.4.3',  // Common Name
     O:  '2.5.4.10', // Organization
     OU: '2.5.4.11', // Organizational Unit
@@ -102,6 +91,20 @@ const oidMap: Record<CsrAttribute, string> = {
     L:  '2.5.4.7',  // Locality
     ST: '2.5.4.8',  // State/Province
 };
+
+function pemEncode(label: string, der: ArrayBuffer): string {
+    const b64 = Buffer.from(der)
+        .toString('base64')
+        .match(/.{1,64}/g)!
+        .join('\n');
+
+    return [
+        `-----BEGIN ${label}-----`,
+        b64,
+        `-----END ${label}-----`,
+        '',
+    ].join('\n');
+}
 
 /**
  * Generates a PEM-encoded CSR (PKCS#10) from a Web Crypto Ed25519 key pair.
@@ -115,88 +118,27 @@ export async function generateCSR(
   keyPair: CryptoKeyPair,
   args: Partial<Record<CsrAttribute, string>>
 ): Promise<string> {
-    // Build subject RDN sequence from provided attributes
-    const attrTypesAndValues: AttributeTypeAndValue[] = [];
-    for (const [attr, value] of Object.entries(args)) {
-        if (!value) continue;
-        const oid = oidMap[attr as CsrAttribute];
-        if (!oid) continue;
-        attrTypesAndValues.push(new AttributeTypeAndValue({
-            type: oid,
-            value: new Utf8String({ value: value }),
-        }));
-    }
+    const csr = new pkijs.CertificationRequest();
 
-    // Subject is a RelativeDistinguishedNames containing an array of AttributeTypeAndValue
-    const subject = new RelativeDistinguishedNames({
-        typesAndValues: attrTypesAndValues,
-    });
+    for (const [k, v] of Object.entries(args)) {
+        if (!v) continue;
 
-    // Export and parse the public key SPKI
-    const spkiRaw = await crypto.subtle.exportKey('spki', keyPair.publicKey);
-    const asn1Result = fromBER(new Uint8Array(spkiRaw).buffer);
-    const subjectPKInfo = new PublicKeyInfo({ schema: asn1Result.result });
-
-    // Ed25519 signature algorithm identifier
-    const signAlgId = new AlgorithmIdentifier({
-        algorithmId: '1.3.101.112', // id-Ed25519
-    });
-
-    // Build the TBS certification request manually using asn1js
-    const versionInt = new Integer({ value: 0 });
-
-    // TBS sequence: version [0] EXPLICIT INTEGER, subject, subjectPublicKeyInfo, attributes [1]
-    const tbsValue = new Sequence({
-        value: [
-            // version [0] EXPLICIT INTEGER 0
-            new Sequence({
-                value: [versionInt],
-                idBlock: {
-                    tagClass: 3, // context-specific
-                    tagNumber: 0,
-                },
+        csr.subject.typesAndValues.push(
+            new pkijs.AttributeTypeAndValue({
+                type: SUBJECT_OIDS[k as CsrAttribute],
+                value: new asn1js.Utf8String({
+                    value: v,
+                }),
             }),
-            subject.toSchema(),
-            subjectPKInfo.toSchema(),
-            // attributes [1] empty sequence (context-specific)
-            new Sequence({
-                value: [],
-                idBlock: {
-                    tagClass: 3, // context-specific
-                    tagNumber: 1,
-                },
-            }),
-        ],
-    });
-
-    const tbsBytes = tbsValue.toBER(false);
-    const tbsView = new Uint8Array(tbsBytes);
-
-    // Sign using the private key
-    const signatureRaw = await crypto.subtle.sign('Ed25519', keyPair.privateKey, tbsView);
-    const sigBits = new BitString({ valueHex: new Uint8Array(signatureRaw) });
-
-    // Build the full CertificationRequest ASN.1 structure
-    const fullSeq = new Sequence({
-        value: [
-            tbsValue,
-            signAlgId.toSchema(),
-            sigBits,
-        ],
-    });
-
-    const fullBer = fullSeq.toBER(false);
-
-    // Convert to PEM
-    const b64 = Buffer.from(fullBer).toString('base64');
-    const lines: string[] = [];
-    for (let i = 0; i < b64.length; i += 64) {
-        lines.push(b64.substring(i, i + 64));
+        );
     }
+    await csr.subjectPublicKeyInfo.importKey(keyPair.publicKey);
+    csr.attributes = [];
 
-    return '-----BEGIN CERTIFICATE REQUEST-----\n' +
-           lines.join('\n') + '\n' +
-           '-----END CERTIFICATE REQUEST-----';
+    // Ed25519
+    await csr.sign(keyPair.privateKey, '');
+    const der = csr.toSchema(true).toBER(false);
+    return pemEncode('CERTIFICATE REQUEST', der);
 }
 
 
