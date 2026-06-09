@@ -46,6 +46,12 @@ function formatId(id: string): string {
   return id.slice(0, 18) + '…' + id.slice(-18);
 }
 
+function escapeHtml(text: string): string {
+  const span = document.createElement('span');
+  span.textContent = text;
+  return span.innerHTML;
+}
+
 // ─── App State ─────────────────────────────────────────────────────────────
 
 type CreateKeyType = 'webcrypto' | 'webauthn';
@@ -241,7 +247,7 @@ function renderList() {
       <div class="credential-info">
         <div>
           <span class="credential-type ${typeClass}">${typeLabel}</span>
-          <span class="credential-id">${formatId(keyHandle.id)}</span>
+          <span class="credential-id">${escapeHtml(formatId(keyHandle.id))}</span>
         </div>
         <div style="margin-top:4px;">
           <span class="badge-certs">${hasCerts ? '✓ Certificate chain attached' : 'No certificate chain'}</span>
@@ -294,7 +300,7 @@ function confirmDelete(handle: AuthUtil.KeyHandle) {
   overlay.innerHTML = `
     <div class="modal">
       <h2>Delete Credential</h2>
-      <p>Are you sure you want to delete the <strong>${handle.type}</strong> key "<strong>${handle.id}</strong>"?</p>
+      <p>Are you sure you want to delete the <strong>${handle.type}</strong> key "<strong>${escapeHtml(handle.id)}</strong>"?</p>
       <p style="font-size:0.85rem;color:#e74c3c;">This will remove the private key and associated certificate chain. This action cannot be undone.</p>
       <div class="modal-actions">
         <button class="btn btn-secondary" id="modal-cancel">Cancel</button>
@@ -332,14 +338,14 @@ function showCsrDialog(handle: AuthUtil.KeyHandle) {
   overlay.className = 'modal-overlay';
   overlay.innerHTML = `
     <div class="modal">
-      <h2>Generate CSR for "${formatId(handle.id)}"</h2>
+      <h2>Generate CSR for "${escapeHtml(formatId(handle.id))}"</h2>
       <p style="font-size:0.85rem;color:#666;margin:0 0 12px 0;">
         Fill in the subject attributes for the certificate signing request.
         <br><strong>O</strong> and <strong>OU</strong> are pre-filled automatically.
       </p>
       <div class="field">
         <label for="csr-cn">CN (Common Name) <span style="color:#e74c3c;">*</span></label>
-        <input type="text" id="csr-cn" placeholder="e.g. my-device.example.com" />
+        <input type="text" id="csr-cn" placeholder="e.g. Sam Smith" value="${escapeHtml(handle.id)}" />
       </div>
       <div class="field">
         <label for="csr-c">C (Country)</label>
@@ -406,7 +412,7 @@ function showCsrResult(handle: AuthUtil.KeyHandle, pem: string) {
     <div class="modal">
       <h2>CSR Generated</h2>
       <p style="font-size:0.85rem;color:#666;margin:0 0 12px 0;">
-        Certificate Signing Request for <strong>${formatId(handle.id)}</strong>
+        Certificate Signing Request for <strong>${escapeHtml(formatId(handle.id))}</strong>
       </p>
       <div class="field">
         <label>CSR (PEM)</label>
