@@ -31,7 +31,7 @@ function base64FromBuffer(buf: ArrayBuffer): string {
   return Buffer.from(buf).toString('base64');
 }
 
-function downloadFile(content: string, filename: string, mime = 'application/octet-stream') {
+function downloadFile(content: ArrayBuffer | Uint8Array<ArrayBuffer>, filename: string, mime = 'application/octet-stream') {
   const blob = new Blob([content], { type: mime });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -101,8 +101,9 @@ async function handleGenerate() {
       const handle: AuthUtil.KeyHandle = { type: 'webauthn', id };
       try {
         await AuthUtil.storeCerts(handle, []);
-      } catch {
+      } catch (err) {
         // non-fatal
+        console.warn('Failed to store certs marker for WebAuthn key:', err);
       }
     }
 
@@ -113,6 +114,7 @@ async function handleGenerate() {
     refreshList();
   } catch (err: any) {
     showToast(`Generation failed: ${err.message || err}`, 'error');
+    console.error('Generation error:', err);
   } finally {
     btnGenerate.disabled = false;
     btnGenerate.textContent = 'Generate & Export Public Key';
@@ -121,8 +123,7 @@ async function handleGenerate() {
 btnGenerate.addEventListener('click', handleGenerate);
 
 btnDownloadPub.addEventListener('click', () => {
-  const ext = currentCreateType === 'webcrypto' ? '.pem' : '.bin';
-  downloadFile(pubKeyText.value, `public-key-${keyIdInput.value.trim()}${ext}`);
+  downloadFile(Buffer.from(pubKeyText.value), `public-key-${keyIdInput.value.trim()}.der`);
   showToast('Public key downloaded', 'success');
 });
 
@@ -172,6 +173,7 @@ btnSaveCerts.addEventListener('click', async () => {
     refreshList();
   } catch (err: any) {
     showToast(`Failed to save certificates: ${err.message || err}`, 'error');
+    console.error('Save certs error:', err);
   }
 });
 
@@ -216,6 +218,7 @@ async function refreshList() {
     renderList();
   } catch (err: any) {
     credentialListEl.innerHTML = `<p style="color:#e74c3c;text-align:center;">Failed to load: ${err.message || err}</p>`;
+    console.error('Load credentials error:', err);
   }
 }
 
@@ -270,11 +273,12 @@ async function exportPublicKey(handle: AuthUtil.KeyHandle) {
       showToast('WebAuthn public key was not stored. Re-generate the key to export it.', 'info');
       return;
     }
-    const b64 = base64FromBuffer(publicKey);
-    downloadFile(b64, `public-key-${handle.id}.pem`);
+    // const b64 = base64FromBuffer(publicKey);
+    downloadFile(publicKey, `public-key-${handle.id}.der`);
     showToast('Public key exported', 'success');
   } catch (err: any) {
     showToast(`Export failed: ${err.message || err}`, 'error');
+    console.error('Export error:', err);
   }
 }
 
