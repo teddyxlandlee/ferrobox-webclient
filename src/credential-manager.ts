@@ -123,7 +123,7 @@ async function handleGenerate() {
 btnGenerate.addEventListener('click', handleGenerate);
 
 btnDownloadPub.addEventListener('click', () => {
-  downloadFile(Buffer.from(pubKeyText.value), `public-key-${keyIdInput.value.trim()}.der`);
+  downloadFile(Buffer.from(pubKeyText.value, 'base64'), `public-key-${keyIdInput.value.trim()}.der`);
   showToast('Public key downloaded', 'success');
 });
 
