@@ -249,12 +249,18 @@ function renderList() {
       </div>
       <div class="flex gap-sm">
         <button class="btn btn-outline btn-export-pub" style="font-size:0.75rem;padding:4px 10px;">Export PubKey</button>
+        ${keyHandle.type === 'webcrypto' ? '<button class="btn btn-outline btn-csr" style="font-size:0.75rem;padding:4px 10px;">Generate CSR</button>' : ''}
         <button class="btn btn-outline btn-delete-cred" style="font-size:0.75rem;padding:4px 10px;color:#e74c3c;border-color:#e74c3c;">Delete</button>
       </div>
     `;
 
     const exportBtn = item.querySelector('.btn-export-pub')!;
     exportBtn.addEventListener('click', () => exportPublicKey(keyHandle));
+
+    const csrBtn = item.querySelector('.btn-csr');
+    if (csrBtn) {
+      csrBtn.addEventListener('click', () => showCsrDialog(keyHandle));
+    }
 
     const deleteBtn = item.querySelector('.btn-delete-cred')!;
     deleteBtn.addEventListener('click', () => confirmDelete(keyHandle));
@@ -312,6 +318,123 @@ function confirmDelete(handle: AuthUtil.KeyHandle) {
       showToast(`Deletion failed: ${err.message || err}`, 'error');
       overlay.remove();
     }
+  });
+
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) overlay.remove();
+  });
+}
+
+// ─── CSR Dialog ─────────────────────────────────────────────────────────────
+
+function showCsrDialog(handle: AuthUtil.KeyHandle) {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal">
+      <h2>Generate CSR for "${formatId(handle.id)}"</h2>
+      <p style="font-size:0.85rem;color:#666;margin:0 0 12px 0;">
+        Fill in the subject attributes for the certificate signing request.
+        <br><strong>O</strong> and <strong>OU</strong> are pre-filled automatically.
+      </p>
+      <div class="field">
+        <label for="csr-cn">CN (Common Name) <span style="color:#e74c3c;">*</span></label>
+        <input type="text" id="csr-cn" placeholder="e.g. my-device.example.com" />
+      </div>
+      <div class="field">
+        <label for="csr-c">C (Country)</label>
+        <input type="text" id="csr-c" placeholder="e.g. US" maxlength="2" />
+      </div>
+      <div class="field">
+        <label for="csr-l">L (Locality)</label>
+        <input type="text" id="csr-l" placeholder="e.g. San Francisco" />
+      </div>
+      <div class="field">
+        <label for="csr-st">ST (State/Province)</label>
+        <input type="text" id="csr-st" placeholder="e.g. California" />
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" id="csr-cancel">Cancel</button>
+        <button class="btn btn-primary" id="csr-generate">Generate CSR</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  overlay.querySelector('#csr-cancel')!.addEventListener('click', () => overlay.remove());
+
+  overlay.querySelector('#csr-generate')!.addEventListener('click', async () => {
+    const cn = (overlay.querySelector('#csr-cn') as HTMLInputElement).value.trim();
+    if (!cn) {
+      showToast('Common Name (CN) is required', 'error');
+      return;
+    }
+
+    const c = (overlay.querySelector('#csr-c') as HTMLInputElement).value.trim();
+    const l = (overlay.querySelector('#csr-l') as HTMLInputElement).value.trim();
+    const st = (overlay.querySelector('#csr-st') as HTMLInputElement).value.trim();
+
+    const args: Partial<Record<'CN' | 'O' | 'OU' | 'C' | 'L' | 'ST', string>> = {
+      CN: cn,
+      O: 'S7 FerroBox (v2)',
+      OU: 'WEBCRYPTO',
+    };
+    if (c) args.C = c;
+    if (l) args.L = l;
+    if (st) args.ST = st;
+
+    try {
+      const keyPair = await WebCryptoAuth.getKey(handle.id);
+      const pem = await WebCryptoAuth.generateCSR(keyPair, args);
+      overlay.remove();
+      showCsrResult(handle, pem);
+    } catch (err: any) {
+      showToast(`CSR generation failed: ${err.message || err}`, 'error');
+      console.error('CSR error:', err);
+    }
+  });
+
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) overlay.remove();
+  });
+}
+
+function showCsrResult(handle: AuthUtil.KeyHandle, pem: string) {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal">
+      <h2>CSR Generated</h2>
+      <p style="font-size:0.85rem;color:#666;margin:0 0 12px 0;">
+        Certificate Signing Request for <strong>${formatId(handle.id)}</strong>
+      </p>
+      <div class="field">
+        <label>CSR (PEM)</label>
+        <textarea id="csr-result-text" readonly rows="10" style="width:100%;font-family:'SF Mono','Fira Code','Consolas',monospace;font-size:0.75rem;">${pem}</textarea>
+      </div>
+      <div class="flex flex-end" style="margin-top:8px;">
+        <button class="btn btn-secondary" id="csr-result-close">Close</button>
+        <button class="btn btn-secondary" id="csr-result-copy">Copy to Clipboard</button>
+        <button class="btn btn-primary" id="csr-result-download">Download as File</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  overlay.querySelector('#csr-result-close')!.addEventListener('click', () => overlay.remove());
+
+  overlay.querySelector('#csr-result-copy')!.addEventListener('click', () => {
+    navigator.clipboard.writeText(pem).then(() => {
+      showToast('CSR copied to clipboard', 'success');
+    }).catch(() => {
+      showToast('Failed to copy', 'error');
+    });
+  });
+
+  overlay.querySelector('#csr-result-download')!.addEventListener('click', () => {
+    const bytes = Buffer.from(pem, 'utf-8');
+    downloadFile(bytes, `csr-${handle.id}.pem`, 'application/x-pem-file');
+    showToast('CSR downloaded', 'success');
   });
 
   overlay.addEventListener('click', (e) => {

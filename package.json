@@ -18,10 +18,12 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "asn1js": "^3.0.10",
     "buffer": "^6.0.3",
     "ferrobox-core": "github:teddyxlandlee/ferrobox-core",
     "file-saver": "^2.0.5",
     "jwt-decode": "^4.0.0",
-    "nanoid": "^5.1.11"
+    "nanoid": "^5.1.11",
+    "pkijs": "^3.4.0"
   }
 }
