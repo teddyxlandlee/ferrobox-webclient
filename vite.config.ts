@@ -20,7 +20,8 @@ export default defineConfig({
                 'static/download.html',
                 'static/upload.html',
                 'static/credentials.html',
-            ]
-        }
+            ],
+        },
+        sourcemap: true,
     },
 })

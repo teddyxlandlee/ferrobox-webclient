@@ -1,2 +1,7 @@
 pages_build_output_dir = "./dist"
 name = 'ferrobox-webclient'
+
+[vars]
+OSS_BUCKET_META = 's7-ferrobox-v2-meta'
+OSS_BUCKET_DATA = 's7-ferrobox-v2-data'
+OSS_REGION = 'oss-cn-hongkong'
