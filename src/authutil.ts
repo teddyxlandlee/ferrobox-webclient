@@ -60,7 +60,7 @@ export async function signData(keyHandle: KeyHandle, data: string | Uint8Array<A
     }
 
     if (keyHandle.type === 'webcrypto') {
-        const key: CryptoKey = await WebCryptoAuth.getKey(keyHandle.id)
+        const key: CryptoKey = (await WebCryptoAuth.getKey(keyHandle.id)).privateKey
 
         const signature = await crypto.subtle.sign('Ed25519', key, data)
         return {

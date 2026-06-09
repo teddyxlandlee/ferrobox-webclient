@@ -17,7 +17,7 @@ export async function generateKeyPair(
     const db = await dbPromise;
     const tx = db.transaction(STORE_NAME, "readwrite");
 
-    tx.objectStore(STORE_NAME).put(keyPair.privateKey, id);
+    tx.objectStore(STORE_NAME).put(keyPair, id);
 
     await new Promise<void>((resolve, reject) => {
         tx.oncomplete = () => resolve();
@@ -43,16 +43,20 @@ export async function listKeys(): Promise<readonly string[]> {
 
 export async function getKey(
     id: string,
-): Promise<CryptoKey> {
+): Promise<CryptoKeyPair> {
     const db = await dbPromise;
     const tx = db.transaction(STORE_NAME, "readonly");
     const request = tx.objectStore(STORE_NAME).get(id);
 
-    return await new Promise<CryptoKey>((resolve, reject) => {
+    return await new Promise<CryptoKeyPair>((resolve, reject) => {
         request.onsuccess = () => {
-            const key = request.result;
-            if (!(key instanceof CryptoKey)) {  // implicit null check
-                reject(Error(`Key '${id}' not found`,));
+            const key = request.result as any;
+            // if (!(key.publicKey instanceof CryptoKey)) {  // implicit null check
+            //     reject(Error(`Key '${id}' not found`,));
+            //     return;
+            // }
+            if (!key || !(key.publicKey instanceof CryptoKey) || !(key.privateKey instanceof CryptoKey)) {
+                reject(Error(`Key '${id}' not found`));
                 return;
             }
 
