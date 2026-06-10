@@ -22,7 +22,6 @@
     "ferrobox-core": "github:teddyxlandlee/ferrobox-core",
     "file-saver": "^2.0.5",
     "jwt-decode": "^4.0.0",
-    "nanoid": "^5.1.11",
-    "pkijs": "^3.4.0"
+    "nanoid": "^5.1.11"
   }
 }

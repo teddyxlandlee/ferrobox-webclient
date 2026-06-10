@@ -1,7 +1,4 @@
 import {getDbPromise} from "./auth-db";
-import {Buffer} from 'buffer';
-import * as pkijs from 'pkijs';
-import * as asn1js from 'asn1js';
 
 const STORE_NAME = 'auth-keys'
 const dbPromise = getDbPromise(STORE_NAME)
@@ -81,62 +78,4 @@ export async function deleteKey(id: string): Promise<void> {
     });
 }
 
-type CsrAttribute = 'CN' | 'O' | 'OU' | 'C' | 'L' | 'ST';
-
-const SUBJECT_OIDS: Record<CsrAttribute, string> = {
-    CN: '2.5.4.3',  // Common Name
-    O:  '2.5.4.10', // Organization
-    OU: '2.5.4.11', // Organizational Unit
-    C:  '2.5.4.6',  // Country
-    L:  '2.5.4.7',  // Locality
-    ST: '2.5.4.8',  // State/Province
-};
-
-function pemEncode(label: string, der: ArrayBuffer): string {
-    const b64 = Buffer.from(der)
-        .toString('base64')
-        .match(/.{1,64}/g)!
-        .join('\n');
-
-    return [
-        `-----BEGIN ${label}-----`,
-        b64,
-        `-----END ${label}-----`,
-        '',
-    ].join('\n');
-}
-
-/**
- * Generates a PEM-encoded CSR (PKCS#10) from a Web Crypto Ed25519 key pair.
- * The private key must have usage `['sign']` and may be non-extractable.
- *
- * @param keyPair - CryptoKeyPair with Ed25519 keys
- * @param args - Subject attributes (only provided keys are included)
- * @returns PEM string of the CSR
- */
-export async function generateCSR(
-  keyPair: CryptoKeyPair,
-  args: Partial<Record<CsrAttribute, string>>
-): Promise<string> {
-    const csr = new pkijs.CertificationRequest();
-
-    for (const [k, v] of Object.entries(args)) {
-        if (!v) continue;
-
-        csr.subject.typesAndValues.push(
-            new pkijs.AttributeTypeAndValue({
-                type: SUBJECT_OIDS[k as CsrAttribute],
-                value: new asn1js.Utf8String({value: v}),
-            }),
-        );
-    }
-    await csr.subjectPublicKeyInfo.importKey(keyPair.publicKey);
-    csr.attributes = [];
-
-    // Ed25519
-    await csr.sign(keyPair.privateKey, 'SHA-256');
-    const der = csr.toSchema(true).toBER(false);
-    return pemEncode('CERTIFICATE REQUEST', der);
-}
-
-
+export { generateCSR } from './auth-csr-ed25519';
