@@ -126,9 +126,7 @@ export async function generateCSR(
         csr.subject.typesAndValues.push(
             new pkijs.AttributeTypeAndValue({
                 type: SUBJECT_OIDS[k as CsrAttribute],
-                value: new asn1js.Utf8String({
-                    value: v,
-                }),
+                value: new asn1js.Utf8String({value: v}),
             }),
         );
     }
@@ -136,7 +134,7 @@ export async function generateCSR(
     csr.attributes = [];
 
     // Ed25519
-    await csr.sign(keyPair.privateKey, '');
+    await csr.sign(keyPair.privateKey, 'SHA-256');
     const der = csr.toSchema(true).toBER(false);
     return pemEncode('CERTIFICATE REQUEST', der);
 }
