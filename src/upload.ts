@@ -97,7 +97,7 @@ async function populateKeyHandles(): Promise<void> {
         const option = document.createElement('option')
         option.disabled = true
         option.selected = true
-        option.textContent = 'No keys found – register a key first'
+        option.textContent = 'No keys found \u2013 register a key first'
         keyHandleSelect.appendChild(option)
         if (uploadButton) uploadButton.disabled = true
         return

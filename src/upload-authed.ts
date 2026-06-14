@@ -27,6 +27,28 @@ export function randomNamers(metaLength?: number, dataLength?: number): Namers {
     }
 }
 
+const ENABLE_REQUEST_STREAMS: boolean = false
+const supportsRequestStreams = () => {
+    /* https://developer.chrome.com/docs/capabilities/web-apis/fetch-streaming-requests */
+    let duplexAccessed = false;
+
+    const hasContentType = new Request('', ({
+        body: new ReadableStream(),
+        method: 'POST',
+        get duplex() {
+            duplexAccessed = true;
+            return 'half';
+        },
+    } as RequestInit)).headers.has('Content-Type');
+
+    return duplexAccessed && !hasContentType;
+}
+
+async function wrapRequestBody(stream: ReadableStream<any>): Promise<BodyInit> {
+    if (ENABLE_REQUEST_STREAMS && supportsRequestStreams()) return stream
+    return new Response(stream).blob()
+}
+
 export abstract class AuthedUploadEngine implements UploadEngine {
     private readonly maxRetries: number
     // Only retry auth server, not storage server
@@ -56,7 +78,7 @@ export abstract class AuthedUploadEngine implements UploadEngine {
 
     private async uploadVia<T>(
         authServer: URI, data: T,
-        bodyConstructor: (data: T) => string | ReadableStream,
+        bodyConstructor: (data: T) => BodyInit | Promise<BodyInit>,
         authProvider: (data: T) => Promise<AuthenticationField>,
         namer: (data: T) => Promise<string>,
         retries: number = 0,
@@ -91,10 +113,14 @@ export abstract class AuthedUploadEngine implements UploadEngine {
         if (typeof res.url !== 'string') {
             throw new Error('No URL returned from metaUpload server')
         }
+        let body = bodyConstructor(data)
+        if (body instanceof Promise) {
+            body = await body
+        }
 
         const storageResponse = await fetch(res.url, {
             method: 'PUT',
-            body: bodyConstructor(data),
+            body,
         })
         if (!storageResponse.ok) {
             throw new Error('Failed to upload meta to storage server: ' + await storageResponse.text())
@@ -106,7 +132,7 @@ export abstract class AuthedUploadEngine implements UploadEngine {
         return this.uploadVia(this.endpoints.metaUpload, meta, JSON.stringify, this.authMeta, this.namers.meta)
     }
     async uploadData(data: EncryptResult): Promise<string> {
-        const slug = await this.uploadVia(this.endpoints.dataUpload, data, (d) => d.encodedStream, this.authData, this.namers.data)
+        const slug = await this.uploadVia(this.endpoints.dataUpload, data, (d) => wrapRequestBody(d.encodedStream), this.authData, this.namers.data)
         return new URL(slug, this.endpoints.dataDownloadRoot).href
     }
 }
