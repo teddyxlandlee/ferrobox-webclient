@@ -79,6 +79,7 @@ export abstract class AuthedUploadEngine implements UploadEngine {
     private async uploadVia<T>(
         authServer: URI, data: T,
         bodyConstructor: (data: T) => BodyInit | Promise<BodyInit>,
+        contentType: string,
         authProvider: (data: T) => Promise<AuthenticationField>,
         namer: (data: T) => Promise<string>,
         retries: number = 0,
@@ -103,7 +104,7 @@ export abstract class AuthedUploadEngine implements UploadEngine {
         if (!authServerResponse.ok) {
             if (await this.retryPredicate(authServerResponse)) {
                 // authorization credentials may be outdated
-                return this.uploadVia(authServer, data, bodyConstructor, authProvider, namer, retries + 1)
+                return this.uploadVia(authServer, data, bodyConstructor, contentType, authProvider, namer, retries + 1)
             }
 
             const errorText = await authServerResponse.text()
@@ -121,6 +122,9 @@ export abstract class AuthedUploadEngine implements UploadEngine {
         const storageResponse = await fetch(res.url, {
             method: 'PUT',
             body,
+            headers: {
+                'content-type': contentType,
+            },
         })
         if (!storageResponse.ok) {
             throw new Error('Failed to upload meta to storage server: ' + await storageResponse.text())
@@ -129,10 +133,20 @@ export abstract class AuthedUploadEngine implements UploadEngine {
     }
 
     async uploadMeta(meta: MetaOutV10): Promise<string> {
-        return this.uploadVia(this.endpoints.metaUpload, meta, JSON.stringify, this.authMeta, this.namers.meta)
+        return this.uploadVia(
+            this.endpoints.metaUpload,
+            meta, JSON.stringify,
+            'application/json',
+            this.authMeta, this.namers.meta,
+        )
     }
     async uploadData(data: EncryptResult): Promise<string> {
-        const slug = await this.uploadVia(this.endpoints.dataUpload, data, (d) => wrapRequestBody(d.encodedStream), this.authData, this.namers.data)
+        const slug = await this.uploadVia(
+            this.endpoints.dataUpload,
+            data, (d) => wrapRequestBody(d.encodedStream),
+            'application/octet-stream',
+            this.authData, this.namers.data,
+        )
         return new URL(slug, this.endpoints.dataDownloadRoot).href
     }
 }
